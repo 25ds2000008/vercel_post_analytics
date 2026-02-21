@@ -1,22 +1,26 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import os
 import json
 import numpy as np
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-with open("q-vercel-latency.json") as f:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JSON_PATH = os.path.join(BASE_DIR, "..", "q-vercel-latency.json")
+
+with open(JSON_PATH, "r") as f:
     data = json.load(f)
 
 @app.post("/api/latency")
-def latency(payload: dict):
+async def latency(payload: dict):
     regions = payload["regions"]
     threshold = payload["threshold_ms"]
 
