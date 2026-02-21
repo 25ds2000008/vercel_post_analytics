@@ -1,9 +1,34 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "api/index.py", "use": "@vercel/python" }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "api/index.py" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }
+```
+
+---
+
+**`q-vercel-latency.json`** → Upload the file you downloaded from the challenge platform.
+
+> To upload a file on GitHub: Go to the repo → **Add file → Upload files**
+
+---
+
+### Step 3: Connect to Vercel Dashboard
+
+1. Go to **vercel.com** → **Add New Project**
+2. Click **Import Git Repository** → Select your GitHub repo
+3. Leave all settings as default
+4. Click **Deploy**
+
+---
+
+### Step 4: Get Your URL
+
+After deploy succeeds, Vercel gives you a URL like:
+```
+https://vercel-latency-api-xyz.vercel.app
+```
+
+Your **POST endpoint URL** to submit as the answer will be:
+```
+https://vercel-latency-api-xyz.vercel.app/api/index
