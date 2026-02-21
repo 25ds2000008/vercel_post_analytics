@@ -1,48 +1,47 @@
-from http.server import BaseHTTPRequestHandler
-import json
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import json, os
 import numpy as np
 
-# Load telemetry data
-with open("q-vercel-latency.json") as f:
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+DATA_PATH = os.path.join(os.path.dirname(__file__), "../q-vercel-latency.json")
+with open(DATA_PATH) as f:
     TELEMETRY = json.load(f)
 
-def compute_metrics(regions, threshold_ms):
+class Request(BaseModel):
+    regions: list[str]
+    threshold_ms: float
+
+@app.post("/api/index")
+def get_metrics(req: Request):
     result = {}
-    for region in regions:
+    for region in req.regions:
         records = [r for r in TELEMETRY if r["region"] == region]
         if not records:
             continue
         latencies = [r["latency_ms"] for r in records]
         uptimes = [r["uptime"] for r in records]
         result[region] = {
-            "avg_latency": round(sum(latencies) / len(latencies), 4),
+            "avg_latency": round(float(np.mean(latencies)), 4),
             "p95_latency": round(float(np.percentile(latencies, 95)), 4),
-            "avg_uptime": round(sum(uptimes) / len(uptimes), 4),
-            "breaches": sum(1 for l in latencies if l > threshold_ms)
+            "avg_uptime": round(float(np.mean(uptimes)), 4),
+            "breaches": int(sum(1 for l in latencies if l > req.threshold_ms))
         }
     return result
+```
 
-class handler(BaseHTTPRequestHandler):
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self._send_cors_headers()
-        self.end_headers()
+---
 
-    def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length))
-        regions = body.get("regions", [])
-        threshold_ms = body.get("threshold_ms", 180)
-
-        result = compute_metrics(regions, threshold_ms)
-
-        self.send_response(200)
-        self._send_cors_headers()
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(result).encode())
-
-    def _send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+**`requirements.txt`**
+```
+fastapi
+numpy
