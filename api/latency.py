@@ -1,54 +1,37 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import json
-import statistics
 import numpy as np
 
-def handler(request):
-    if request.method == "OPTIONS":
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type"
-            }
-        }
+app = FastAPI()
 
-    if request.method != "POST":
-        return {
-            "statusCode": 405,
-            "body": "Method Not Allowed"
-        }
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["POST"],
+    allow_headers=["*"],
+)
 
-    data = request.json()
-    regions = data["regions"]
-    threshold = data["threshold_ms"]
+with open("q-vercel-latency.json") as f:
+    data = json.load(f)
 
-    with open("q-vercel-latency.json") as f:
-        telemetry = json.load(f)
+@app.post("/api/latency")
+def latency(payload: dict):
+    regions = payload["regions"]
+    threshold = payload["threshold_ms"]
 
     result = {}
 
     for region in regions:
-        records = [r for r in telemetry if r["region"] == region]
-
-        latencies = [r["latency_ms"] for r in records]
-        uptimes = [r["uptime"] for r in records]
-
-        if not records:
-            continue
+        rows = [r for r in data if r["region"] == region]
+        latencies = [r["latency_ms"] for r in rows]
+        uptimes = [r["uptime"] for r in rows]
 
         result[region] = {
-            "avg_latency": statistics.mean(latencies),
+            "avg_latency": float(np.mean(latencies)),
             "p95_latency": float(np.percentile(latencies, 95)),
-            "avg_uptime": statistics.mean(uptimes),
-            "breaches": sum(1 for l in latencies if l > threshold)
+            "avg_uptime": float(np.mean(uptimes)),
+            "breaches": sum(l > threshold for l in latencies),
         }
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Access-Control-Allow-Origin": "*",
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps(result)
-    }
+    return result
